@@ -1,0 +1,20 @@
+{
+  "id": "EG-0007",
+  "governorate": "Sharqia",
+  "corridor": "KSA-EGY",
+  "score": 78,
+  "tier": "B",
+  "features": {
+    "regularity":     { "value": 0.92, "label": "Inflow regularity", "weight": 0.35 },
+    "median_inflow":  { "value": 0.71, "label": "Typical monthly amount", "weight": 0.20 },
+    "shock_recovery": { "value": 0.84, "label": "Recovery after a missed month", "weight": 0.25 },
+    "trend":          { "value": 0.55, "label": "Direction over 24 months", "weight": 0.20 }
+  },
+  "products": [
+    { "name": "Auto-save on inflow", "detail": "5% swept on every transfer", "unlocked": true },
+    { "name": "Emergency nano-credit", "detail": "Up to EGP 3,000", "unlocked": true },
+    { "name": "School-fee smoothing", "detail": "Term fees over 6 months", "unlocked": false }
+  ],
+  "explanation_en": "Transfers arrive nearly every month and recover quickly after a gap.",
+  "explanation_ar": "التحويلات تصل كل شهر تقريبا وتعود بسرعة بعد أي انقطاع."
+}
