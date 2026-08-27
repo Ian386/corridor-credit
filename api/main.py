@@ -105,7 +105,8 @@ def score(household_id: str):
             # No audit line here on purpose. The fixture was hand-written, not
             # computed, so logging it would put a row in audit.log that nothing
             # can reproduce - and reproducibility is the whole claim.
-            return FIXTURE
+            # Copy, so the shared fixture dict is never mutated in place.
+            return {**FIXTURE, "llm_used": False}
         return _unknown()
 
     household = BY_ID.get(household_id)
@@ -120,6 +121,9 @@ def score(household_id: str):
     payload["explanation_en"], payload["explanation_ar"], used_llm = llm.rewrite(
         payload["explanation_en"], payload["explanation_ar"]
     )
+    # Appended after explanation_ar, so nothing in the frozen ordering shifts.
+    # web/index.html reads this to label the explanation Granite or template.
+    payload["llm_used"] = used_llm
     _audit(payload, "granite" if used_llm else
            ("fallback" if llm.enabled() else "off"))
     return payload

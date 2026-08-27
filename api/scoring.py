@@ -217,12 +217,22 @@ def score_household(household: dict, corpus_min: float = 0.0,
     score = int(round(100 * sum(values[k] * WEIGHTS[k] for k in FEATURE_ORDER)))
     tier = tier_for(score)
 
-    contributions = {k: values[k] * WEIGHTS[k] for k in FEATURE_ORDER}
-    ranked = sorted(
+    # Weakest = the feature losing the household the most points, i.e. the
+    # biggest (1 - value) * weight. That is the one worth improving, which is
+    # the whole point of showing an explanation at all. Ranking the STRENGTH
+    # by contribution instead would let a heavily weighted but poor feature be
+    # called a strength: an erratic household would be told its strong point is
+    # regularity, which is the opposite of the truth.
+    # Strongest first, and by raw value, so the sentence can never call a 0.38
+    # a strength while a 0.54 is named the weakness. Weight only breaks ties.
+    strongest = min(
         FEATURE_ORDER,
-        key=lambda k: (-contributions[k], FEATURE_ORDER.index(k)),
+        key=lambda k: (-values[k], -WEIGHTS[k], FEATURE_ORDER.index(k)),
     )
-    strongest, weakest = ranked[0], ranked[-1]
+    weakest = min(
+        (k for k in FEATURE_ORDER if k != strongest),
+        key=lambda k: (-(1 - values[k]) * WEIGHTS[k], FEATURE_ORDER.index(k)),
+    )
     explanation_en, explanation_ar = explain(score, tier, strongest, weakest)
 
     return {
