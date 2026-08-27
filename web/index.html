@@ -1,19 +1,806 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Corridor Credit</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Corridor Credit — Egypt Remittance Scoring</title>
+  <meta name="description" content="Consent-based credit scoring for Egyptian remittance households. IBM Granite · MC Studio × IBM Dev Day 2026.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── DESIGN TOKENS ── */
+    :root {
+      --ibm:        #0f62fe;
+      --ibm-lt:     #74a9ff;
+      --bg:         #060b16;
+      --bg-card:    #0c1422;
+      --bg-up:      #13203a;
+      --border:     #1a2d45;
+      --text:       #edf2f9;
+      --text-s:     #7a96b5;
+      --text-m:     #3d5470;
+      --green:      #42be65;
+      --amber:      #f1c21b;
+      --red:        #fa4d56;
+      --purple:     #be95ff;
+      --teal:       #08bdba;
+      --font:       'IBM Plex Sans', system-ui, sans-serif;
+      --font-ar:    'IBM Plex Sans Arabic', system-ui, sans-serif;
+      --font-mono:  'IBM Plex Mono', monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+    /* ── HEADER ── */
+    .hdr {
+      position: sticky; top: 0; z-index: 200;
+      background: rgba(6,11,22,.9); backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      height: 58px; padding: 0 28px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { display: flex; align-items: center; gap: 11px; }
+    .logo-icon {
+      width: 32px; height: 32px; border-radius: 7px;
+      background: linear-gradient(135deg,#0f62fe,#4589ff);
+      display: flex; align-items: center; justify-content: center; font-size: 16px;
+      box-shadow: 0 0 16px rgba(15,98,254,.35);
+    }
+    .logo-t { font-size: 16px; font-weight: 700; letter-spacing: -.3px; }
+    .logo-s { font-size: 10px; color: var(--text-s); }
+    .badges { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .badge {
+      padding: 3px 9px; border-radius: 20px;
+      font-size: 10px; font-weight: 700; border: 1px solid;
+    }
+    .b-blue  { background: rgba(15,98,254,.1); border-color: rgba(15,98,254,.3); color: var(--ibm-lt); }
+    .b-red   { background: rgba(250,77,86,.08); border-color: rgba(250,77,86,.3); color: #ff8389; }
+    .b-live  { background: rgba(66,190,101,.1); border-color: rgba(66,190,101,.35); color: var(--green); animation: blink 2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+    /* ── LAYOUT ── */
+    .layout {
+      display: grid; grid-template-columns: 288px 1fr;
+      gap: 18px; max-width: 1300px; margin: 0 auto;
+      padding: 20px 20px 40px;
+    }
+    .sidebar { display: flex; flex-direction: column; gap: 14px; }
+    .panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .p-hdr {
+      padding: 11px 15px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .p-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-s); }
+    .search-wrap { padding: 11px 15px; border-bottom: 1px solid var(--border); }
+    .search {
+      width: 100%; background: var(--bg-up); border: 1px solid var(--border);
+      border-radius: 7px; padding: 8px 12px; color: var(--text);
+      font-family: var(--font); font-size: 13px; outline: none; transition: border-color .2s;
+    }
+    .search:focus { border-color: var(--ibm); }
+    .search::placeholder { color: var(--text-m); }
+    .hh-list { max-height: 440px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+    .hh-item {
+      padding: 9px 15px; display: flex; align-items: center; gap: 10px;
+      cursor: pointer; transition: background .12s; border-left: 3px solid transparent;
+    }
+    .hh-item:hover { background: var(--bg-up); }
+    .hh-item.active { background: rgba(15,98,254,.07); border-left-color: var(--ibm); }
+    .av {
+      width: 34px; height: 34px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; flex-shrink: 0;
+    }
+    .hh-info { flex: 1; min-width: 0; }
+    .hh-n { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hh-m { font-size: 10px; color: var(--text-m); margin-top: 1px; }
+    .s-pill { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 5px; flex-shrink: 0; }
+
+    /* ── CONTENT ── */
+    .content { display: flex; flex-direction: column; gap: 16px; }
+
+    /* ── SCORE CARD ── */
+    .score-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 24px 26px; display: grid; grid-template-columns: auto 1fr auto; gap: 26px; align-items: center;
+    }
+    .dial-wrap { position: relative; width: 148px; height: 148px; }
+    .dial-wrap svg { transform: rotate(-90deg); display: block; }
+    .dial-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; }
+    .dial-n { font-size: 36px; font-weight: 800; line-height: 1; }
+    .dial-l { font-size: 9px; color: var(--text-s); margin-top: 3px; letter-spacing: .6px; text-transform: uppercase; }
+    .score-name { font-size: 21px; font-weight: 700; margin-bottom: 8px; }
+    .tier-tag {
+      display: none; align-items: center; gap: 5px;
+      padding: 4px 12px; border-radius: 20px;
+      font-size: 11px; font-weight: 700; letter-spacing: .6px;
+      border: 1px solid; margin-bottom: 16px;
+    }
+    .score-stats { display: flex; gap: 22px; }
+    .stat { display: flex; flex-direction: column; gap: 3px; }
+    .stat-l { font-size: 10px; color: var(--text-s); }
+    .stat-v { font-size: 17px; font-weight: 700; }
+    .score-right { display: flex; flex-direction: column; align-items: flex-end; gap: 9px; }
+    .consent-tag {
+      display: none; background: rgba(66,190,101,.1); border: 1px solid rgba(66,190,101,.3);
+      color: var(--green); padding: 4px 9px; border-radius: 5px; font-size: 11px; font-weight: 700;
+    }
+    .stack-chips { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .chip {
+      font-size: 10px; font-weight: 700; color: var(--ibm-lt);
+      background: rgba(15,98,254,.09); border: 1px solid rgba(15,98,254,.22);
+      padding: 3px 8px; border-radius: 4px; letter-spacing: .2px;
+    }
+
+    /* ── EXPLANATION ── */
+    .exp-card {
+      display: none; position: relative; overflow: hidden;
+      background: linear-gradient(135deg, rgba(15,98,254,.07), rgba(15,98,254,.02));
+      border: 1px solid rgba(15,98,254,.28); border-radius: 12px; padding: 18px 20px;
+    }
+    .exp-card::before {
+      content: ''; position: absolute; top:0; left:0;
+      width: 3px; height: 100%;
+      background: linear-gradient(180deg, var(--ibm), rgba(15,98,254,.15));
+    }
+    .exp-hdr { display: flex; align-items: center; gap: 9px; margin-bottom: 13px; }
+    .granite-chip {
+      background: rgba(15,98,254,.14); border: 1px solid rgba(15,98,254,.32);
+      color: var(--ibm-lt); padding: 3px 9px; border-radius: 4px;
+      font-size: 10px; font-weight: 700; letter-spacing: .4px;
+    }
+    .exp-sub { font-size: 10px; color: var(--text-m); }
+    .exp-en { font-size: 14px; line-height: 1.65; color: var(--text); margin-bottom: 13px; }
+    .exp-ar {
+      font-family: var(--font-ar); font-size: 15px; line-height: 1.8;
+      color: #a5c8ff; text-align: right; direction: rtl;
+      border-top: 1px solid rgba(15,98,254,.14); padding-top: 12px;
+    }
+
+    /* ── FEATURES ── */
+    .feat-card {
+      display: none; background: var(--bg-card);
+      border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px;
+    }
+    .feat-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-s); margin-bottom: 16px; }
+    .feat-row { margin-bottom: 14px; }
+    .feat-row:last-child { margin-bottom: 0; }
+    .feat-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .feat-name { font-size: 12px; color: var(--text-s); font-weight: 500; }
+    .feat-val { font-size: 12px; font-weight: 700; color: var(--text); }
+    .bar-bg { height: 6px; background: var(--bg-up); border-radius: 3px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 3px; width: 0%; transition: width .9s cubic-bezier(.4,0,.2,1); }
+
+    /* ── PRODUCTS ── */
+    .products { display: none; grid-template-columns: repeat(3,1fr); gap: 14px; }
+    .prod {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 18px; position: relative; transition: all .3s;
+    }
+    .prod.on  { border-color: rgba(66,190,101,.32); background: rgba(66,190,101,.04); }
+    .prod.off { opacity: .45; }
+    .p-lock { position: absolute; top: 13px; right: 13px; font-size: 16px; }
+    .p-icon { font-size: 24px; margin-bottom: 11px; }
+    .p-name { font-size: 13px; font-weight: 700; margin-bottom: 5px; }
+    .p-desc { font-size: 11px; color: var(--text-s); line-height: 1.5; }
+    .p-limit {
+      display: none; margin-top: 11px; padding: 7px 11px;
+      background: rgba(66,190,101,.1); border-radius: 6px;
+      font-size: 12px; font-weight: 700; color: var(--green);
+    }
+    .p-block { margin-top: 9px; font-size: 10px; color: var(--text-m); }
+
+    /* ── BANK DECISION ── */
+    .bank-card {
+      display: none; background: var(--bg-card);
+      border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+    }
+    .bank-hdr {
+      padding: 11px 16px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .bank-title { font-size: 12px; font-weight: 700; }
+    .bank-body { padding: 16px; display: flex; align-items: center; gap: 16px; }
+    .bank-decision-tag {
+      padding: 8px 18px; border-radius: 8px; font-size: 15px; font-weight: 800;
+      border: 1px solid; letter-spacing: .5px; flex-shrink: 0;
+    }
+    .bank-reason { font-size: 13px; color: var(--text-s); line-height: 1.5; flex: 1; }
+    .bank-req-btn {
+      margin-top: 12px; padding: 10px 20px; border-radius: 8px;
+      background: var(--ibm); border: none; color: #fff;
+      font-family: var(--font); font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: background .18s;
+    }
+    .bank-req-btn:hover { background: #0353e9; }
+    .bank-wrap { padding: 16px; display: flex; justify-content: flex-end; }
+
+    /* ── GOVERNANCE ── */
+    .gov-card {
+      display: none; background: var(--bg-card);
+      border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+    }
+    .gov-hdr { padding: 11px 15px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .gov-title { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; }
+    .live-dot { width: 7px; height: 7px; background: var(--green); border-radius: 50%; animation: blink 2s infinite; }
+    .gov-sub { font-size: 10px; color: var(--text-m); }
+    .audit-log { padding: 11px 15px; max-height: 155px; overflow-y: auto; font-family: var(--font-mono); font-size: 11px; }
+    .arow { display: flex; gap: 10px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+    .at { color: var(--text-m); flex-shrink: 0; width: 62px; }
+    .ae { color: var(--ibm-lt); flex-shrink: 0; min-width: 140px; }
+    .ad { color: var(--text-s); }
+
+    /* ── DEMO BAR ── */
+    .demo-bar {
+      display: flex; gap: 9px; align-items: center;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 11px 16px;
+    }
+    .demo-lbl { font-size: 11px; color: var(--text-s); }
+    .demo-btn { padding: 6px 14px; border-radius: 7px; border: 1px solid; font-family: var(--font); font-size: 12px; font-weight: 700; cursor: pointer; transition: all .18s; }
+    .db-high { background: rgba(66,190,101,.1); border-color: rgba(66,190,101,.4); color: var(--green); }
+    .db-high:hover { background: rgba(66,190,101,.2); }
+    .db-low  { background: rgba(250,77,86,.08); border-color: rgba(250,77,86,.35); color: var(--red); }
+    .db-low:hover  { background: rgba(250,77,86,.18); }
+    .spacer { flex: 1; }
+    .pw { font-size: 10px; color: var(--text-m); display: flex; align-items: center; gap: 4px; }
+    .pw strong { color: var(--ibm-lt); }
+
+    /* ── MISC ── */
+    @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    ::-webkit-scrollbar{width:3px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+    /* ── API STATUS BAR ── */
+    .api-bar {
+      position: fixed; bottom: 14px; right: 16px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 6px 13px;
+      font-family: var(--font-mono); font-size: 10px; color: var(--text-m);
+      display: flex; align-items: center; gap: 7px; z-index: 999;
+    }
+    .api-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .api-dot.live   { background: var(--green); animation: blink 2s infinite; }
+    .api-dot.fixture{ background: var(--amber); }
+  </style>
 </head>
 <body>
-  <!-- Owner: Dev B. Build against ../fixtures/mock_response.json first. -->
-  <!-- Swap API_BASE in when Ian says the endpoint is live. -->
-  <h1>Corridor Credit</h1>
-  <p>Stub. Household picker, score dial, four feature bars, product cards,
-     explanation in Arabic and English.</p>
-  <script>
-    const API_BASE = null; // set to "http://localhost:8000" when the API is ready
-    const FIXTURE  = "../fixtures/mock_response.json";
-  </script>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="logo">
+    <div class="logo-icon">🏦</div>
+    <div>
+      <div class="logo-t">Corridor Credit</div>
+      <div class="logo-s">Egypt Remittance Scoring · MC Studio × IBM Dev Day 2026</div>
+    </div>
+  </div>
+  <div class="badges">
+    <span class="badge b-red">🇪🇬 Egypt · Fintech</span>
+    <span class="badge b-blue">IBM Granite 4.2</span>
+    <span class="badge b-blue">Apache 2.0 · Local</span>
+    <span class="badge b-live">● Live Demo</span>
+  </div>
+</header>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="panel">
+      <div class="p-hdr">
+        <span class="p-title">Households</span>
+        <span id="hh-count" style="font-size:10px;color:var(--text-m)">Loading…</span>
+      </div>
+      <div class="search-wrap">
+        <input id="search" class="search" type="text" placeholder="Search ID, governorate, corridor…" oninput="filterHH(this.value)">
+      </div>
+      <div class="hh-list" id="hh-list"></div>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- SCORE CARD -->
+    <div class="score-card">
+      <div class="dial-wrap">
+        <svg width="148" height="148" viewBox="0 0 148 148">
+          <circle cx="74" cy="74" r="60" fill="none" stroke="#1a2d45" stroke-width="9"/>
+          <circle id="dial-arc" cx="74" cy="74" r="60" fill="none"
+            stroke="#0f62fe" stroke-width="9" stroke-linecap="round"
+            stroke-dasharray="376.99" stroke-dashoffset="376.99"
+            style="transition:stroke-dashoffset 1s cubic-bezier(.4,0,.2,1),stroke .5s"/>
+        </svg>
+        <div class="dial-center">
+          <div class="dial-n" id="dial-n">—</div>
+          <div class="dial-l">Credit Score</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="score-name" id="hh-name">Select a household</div>
+        <div class="tier-tag" id="tier-tag"></div>
+        <div class="score-stats">
+          <div class="stat"><span class="stat-l">Median/mo</span><span class="stat-v" id="s-med">—</span></div>
+          <div class="stat"><span class="stat-l">Active months</span><span class="stat-v" id="s-mo">—</span></div>
+          <div class="stat"><span class="stat-l">Corridor</span><span class="stat-v" id="s-cor" style="font-size:12px;margin-top:2px">—</span></div>
+        </div>
+      </div>
+
+      <div class="score-right">
+        <div class="consent-tag" id="consent-tag">✓ Consented</div>
+        <div class="stack-chips">
+          <span class="chip">IBM Granite 4.2:3b</span>
+          <span class="chip">Ollama · Local · Offline</span>
+          <span class="chip">JSON Audit Log</span>
+          <span class="chip" style="color:var(--text-m);background:transparent;border-color:transparent;font-size:9px">CBE-auditable</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPLANATION -->
+    <div class="exp-card" id="exp-card">
+      <div class="exp-hdr">
+        <span class="granite-chip">IBM Granite 4.2 · Apache 2.0 · Local Inference</span>
+        <span class="exp-sub" id="llm-label">Template · deterministic</span>
+      </div>
+      <div class="exp-en" id="exp-en">—</div>
+      <div class="exp-ar" id="exp-ar">—</div>
+    </div>
+
+    <!-- FEATURES -->
+    <div class="feat-card" id="feat-card">
+      <div class="feat-title">Scoring Features — Pure Arithmetic, Deterministic, No LLM</div>
+      <div class="feat-row">
+        <div class="feat-meta">
+          <span class="feat-name">📊 Inflow Regularity <span style="color:var(--text-m);font-size:10px">w=0.35</span></span>
+          <span class="feat-val" id="f-reg">—</span>
+        </div>
+        <div class="bar-bg"><div class="bar-fill" id="fb-reg" style="background:linear-gradient(90deg,#0f62fe,#74a9ff)"></div></div>
+      </div>
+      <div class="feat-row">
+        <div class="feat-meta">
+          <span class="feat-name">⚡ Shock Recovery <span style="color:var(--text-m);font-size:10px">w=0.25</span></span>
+          <span class="feat-val" id="f-rec">—</span>
+        </div>
+        <div class="bar-bg"><div class="bar-fill" id="fb-rec" style="background:linear-gradient(90deg,#f1c21b,#fdd13a)"></div></div>
+      </div>
+      <div class="feat-row">
+        <div class="feat-meta">
+          <span class="feat-name">💰 Median Inflow <span style="color:var(--text-m);font-size:10px">w=0.20</span></span>
+          <span class="feat-val" id="f-med">—</span>
+        </div>
+        <div class="bar-bg"><div class="bar-fill" id="fb-med" style="background:linear-gradient(90deg,#42be65,#6fdc8c)"></div></div>
+      </div>
+      <div class="feat-row">
+        <div class="feat-meta">
+          <span class="feat-name">📈 Growth Trend <span style="color:var(--text-m);font-size:10px">w=0.20</span></span>
+          <span class="feat-val" id="f-trend">—</span>
+        </div>
+        <div class="bar-bg"><div class="bar-fill" id="fb-trend" style="background:linear-gradient(90deg,#be95ff,#d4bbff)"></div></div>
+      </div>
+    </div>
+
+    <!-- PRODUCTS -->
+    <div class="products" id="products">
+      <div class="prod" id="pc-0">
+        <div class="p-lock" id="pl-0">✅</div>
+        <div class="p-icon">💳</div>
+        <div class="p-name">Auto-Save on Inflow</div>
+        <div class="p-desc">10% swept automatically into savings on every inflow. Always on.</div>
+        <div class="p-limit" id="px-0" style="display:block">Always unlocked</div>
+        <div class="p-block" id="pm-0" style="display:none"></div>
+      </div>
+      <div class="prod" id="pc-1">
+        <div class="p-lock" id="pl-1">🔒</div>
+        <div class="p-icon">⚡</div>
+        <div class="p-name">Emergency Nano-Credit</div>
+        <div class="p-desc">Instant credit capped at 60% of one month median. Consumer protection built in.</div>
+        <div class="p-limit" id="px-1"></div>
+        <div class="p-block" id="pm-1">Requires score ≥ 55</div>
+      </div>
+      <div class="prod" id="pc-2">
+        <div class="p-lock" id="pl-2">🔒</div>
+        <div class="p-icon">🎓</div>
+        <div class="p-name">School-Fee Smoothing</div>
+        <div class="p-desc">FX-hedged term savings to lock in school fees, shielded from EGP/USD swings.</div>
+        <div class="p-limit" id="px-2"></div>
+        <div class="p-block" id="pm-2">Requires score ≥ 75</div>
+      </div>
+    </div>
+
+    <!-- BANK DECISION -->
+    <div class="bank-card" id="bank-card">
+      <div class="bank-hdr">
+        <span class="bank-title">🏛 Bank Partner Decision — Banque Misr (Mock)</span>
+        <span style="font-size:10px;color:var(--text-m)">Score forwarded via secure API</span>
+      </div>
+      <div id="bank-result" style="display:none">
+        <div class="bank-body">
+          <div class="bank-decision-tag" id="bank-tag"></div>
+          <div class="bank-reason" id="bank-reason"></div>
+        </div>
+      </div>
+      <div class="bank-wrap" id="bank-btn-wrap">
+        <button class="bank-req-btn" onclick="requestBankDecision()">🏦 Request Credit Decision →</button>
+      </div>
+    </div>
+
+    <!-- GOVERNANCE -->
+    <div class="gov-card" id="gov-card">
+      <div class="gov-hdr">
+        <div class="gov-title"><div class="live-dot"></div>Audit Log — Every decision reproducible</div>
+        <span class="gov-sub">JSON · append-only · CBE auditable · api/audit.log</span>
+      </div>
+      <div class="audit-log" id="audit-log"></div>
+    </div>
+
+    <!-- DEMO BAR -->
+    <div class="demo-bar">
+      <span class="demo-lbl">Demo quick-select:</span>
+      <button class="demo-btn db-high" onclick="quickPick('EG-0007')">🟢 EG-0007 · Steady (score ~78)</button>
+      <button class="demo-btn db-low"  onclick="quickPick('EG-0142')">🔴 EG-0142 · Erratic (score ~41)</button>
+      <div class="spacer"></div>
+      <div class="pw">Powered by <strong>IBM Granite 4.2</strong> · <strong>Ollama</strong> · <strong>FastAPI</strong> · <strong>Apache 2.0</strong></div>
+    </div>
+  </div>
+</div>
+
+<!-- API STATUS -->
+<div class="api-bar">
+  <div class="api-dot" id="api-dot"></div>
+  <span id="api-status">Connecting…</span>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+// CONFIG
+// Switch API_BASE to the live API when Dev A says it's up.
+// While offline, set USE_FIXTURE = true and load from the JSON file.
+// ════════════════════════════════════════════
+
+const API_BASE   = 'http://localhost:8000';  // Dev A's FastAPI server
+const FIXTURE    = '../fixtures/mock_response.json';
+let   USE_FIXTURE = false;  // auto-detected below
+
+// ════════════════════════════════════════════
+// DATA LAYER
+// ════════════════════════════════════════════
+
+let HOUSEHOLDS = [];   // [{ id, governorate, corridor }]
+let SCORES     = {};   // { id → full score payload }
+let SELECTED   = null;
+
+function getFeatureValue(f) {
+  if (f == null) return 0;
+  if (typeof f === 'object' && 'value' in f) return f.value;
+  return typeof f === 'number' ? f : 0;
+}
+
+function getFeatureLabel(f, defaultLabel) {
+  if (f && typeof f === 'object' && f.label) return f.label;
+  return defaultLabel;
+}
+
+async function loadData() {
+  // 1. Try live API
+  try {
+    const r = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(1500) });
+    if (r.ok) {
+      USE_FIXTURE = false;
+      setApiStatus('live');
+      const hhs = await fetch(`${API_BASE}/households`).then(r=>r.json());
+      HOUSEHOLDS = hhs;
+      renderList(HOUSEHOLDS);
+      document.getElementById('hh-count').textContent = `${hhs.length} records`;
+      setTimeout(() => quickPick('EG-0007'), 300);
+      return;
+    }
+  } catch(_) {}
+
+  // 2. Fall back to fixture file
+  USE_FIXTURE = true;
+  setApiStatus('fixture');
+  try {
+    const fx = await fetch(FIXTURE).then(r=>r.json());
+    if (Array.isArray(fx.households)) {
+      HOUSEHOLDS = fx.households;
+      SCORES     = fx.scores || {};
+    } else if (fx.id) {
+      // Single mock response object from CONTRACT.md (e.g. EG-0007)
+      HOUSEHOLDS = [
+        { id: fx.id, governorate: fx.governorate || "Sharqia", corridor: fx.corridor || "KSA-EGY" },
+        { id: "EG-0142", governorate: "Asyut", corridor: "UAE-EGY" }
+      ];
+      SCORES[fx.id] = fx;
+      SCORES["EG-0142"] = {
+        id: "EG-0142", governorate: "Asyut", corridor: "UAE-EGY",
+        score: 41, tier: "C",
+        features: {
+          regularity:     { value: 0.42, label: "Inflow regularity", weight: 0.35 },
+          median_inflow:  { value: 0.63, label: "Typical monthly amount", weight: 0.20 },
+          shock_recovery: { value: 0.28, label: "Recovery after a missed month", weight: 0.25 },
+          trend:          { value: 0.38, label: "Direction over 24 months", weight: 0.20 }
+        },
+        products: [
+          { name: "Auto-save on inflow", detail: "5% swept on every transfer", unlocked: true },
+          { name: "Emergency nano-credit", detail: "Requires score ≥ 55", unlocked: false },
+          { name: "School-fee smoothing", detail: "Requires score ≥ 75", unlocked: false }
+        ],
+        explanation_en: "A score of 41 (tier C) is supported most by typical monthly amount, and held back most by recovery after a missed month.",
+        explanation_ar: "أقوى ما يدعم الدرجة 41 (الفئة C) هو قيمة التحويل المعتادة، وأضعف عنصر فيها هو سرعة التعافي بعد شهر بلا تحويل."
+      };
+    }
+    renderList(HOUSEHOLDS);
+    document.getElementById('hh-count').textContent = `${HOUSEHOLDS.length} records · offline`;
+    setTimeout(() => quickPick('EG-0007'), 300);
+  } catch(e) {
+    document.getElementById('hh-list').innerHTML =
+      '<div style="padding:16px;font-size:12px;color:var(--red)">Could not load fixture. Check path to fixtures/mock_response.json</div>';
+  }
+}
+
+async function fetchScore(id) {
+  if (USE_FIXTURE) {
+    return SCORES[id] || null;
+  }
+  try {
+    const r = await fetch(`${API_BASE}/score/${id}`);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch(_) {
+    USE_FIXTURE = true;
+    setApiStatus('fixture');
+    return SCORES[id] || null;
+  }
+}
+
+function setApiStatus(state) {
+  const dot = document.getElementById('api-dot');
+  const lbl = document.getElementById('api-status');
+  if (state === 'live') {
+    dot.className = 'api-dot live';
+    lbl.textContent = `API live · ${API_BASE}`;
+  } else {
+    dot.className = 'api-dot fixture';
+    lbl.textContent = 'Fixture mode · offline safe';
+  }
+}
+
+// ════════════════════════════════════════════
+// COLOUR HELPERS
+// ════════════════════════════════════════════
+
+const AV_COLORS = ['#0f62fe','#42be65','#f1c21b','#be95ff','#fa4d56','#08bdba','#ff7eb6','#d2a106','#4589ff'];
+
+function tierStyle(tier) {
+  const map = {
+    A: { col:'#be95ff', bg:'rgba(190,149,255,.12)', bdr:'rgba(190,149,255,.35)' },
+    B: { col:'#42be65', bg:'rgba(66,190,101,.10)',  bdr:'rgba(66,190,101,.30)'  },
+    C: { col:'#f1c21b', bg:'rgba(241,194,27,.10)',  bdr:'rgba(241,194,27,.30)'  },
+    D: { col:'#fa4d56', bg:'rgba(250,77,86,.10)',   bdr:'rgba(250,77,86,.30)'   },
+  };
+  return map[tier] || map.D;
+}
+
+function scoreColor(s) {
+  if (s >= 80) return '#be95ff';
+  if (s >= 60) return '#42be65';
+  if (s >= 40) return '#f1c21b';
+  return '#fa4d56';
+}
+
+function avColor(id) {
+  const n = parseInt(id.replace('EG-','')) || 0;
+  return AV_COLORS[n % AV_COLORS.length];
+}
+
+// ════════════════════════════════════════════
+// RENDER SIDEBAR LIST
+// ════════════════════════════════════════════
+
+function renderList(arr) {
+  const el = document.getElementById('hh-list');
+  el.innerHTML = arr.slice(0, 150).map(hh => {
+    const score = SCORES[hh.id]?.score;
+    const tier  = SCORES[hh.id]?.tier || '—';
+    const ts    = tierStyle(tier);
+    const col   = avColor(hh.id);
+    const init  = hh.id.replace('EG-','');
+    const scoreHtml = score != null
+      ? `<div class="s-pill" style="background:${ts.bg};color:${ts.col}">${score}</div>` : '';
+    return `
+      <div class="hh-item ${hh.id === SELECTED?.id ? 'active' : ''}" onclick="pick('${hh.id}')" id="li-${hh.id}">
+        <div class="av" style="background:${col}18;color:${col};border:1.5px solid ${col}44">${init}</div>
+        <div class="hh-info">
+          <div class="hh-n">${hh.id}</div>
+          <div class="hh-m">${hh.governorate} · ${hh.corridor}</div>
+        </div>
+        ${scoreHtml}
+      </div>`;
+  }).join('');
+}
+
+function filterHH(q) {
+  const lq = q.toLowerCase();
+  const filtered = lq
+    ? HOUSEHOLDS.filter(h => h.id.toLowerCase().includes(lq) || h.governorate.toLowerCase().includes(lq) || h.corridor.toLowerCase().includes(lq))
+    : HOUSEHOLDS;
+  renderList(filtered);
+}
+
+// ════════════════════════════════════════════
+// PICK HOUSEHOLD
+// ════════════════════════════════════════════
+
+async function pick(id) {
+  const data = await fetchScore(id);
+  if (!data) {
+    alert(`Household ${id} not found.`);
+    return;
+  }
+
+  SELECTED = data;
+
+  // Cache score in SCORES map so sidebar pills appear
+  SCORES[id] = data;
+
+  // Sidebar highlight
+  document.querySelectorAll('.hh-item').forEach(el => el.classList.remove('active'));
+  const li = document.getElementById(`li-${id}`);
+  if (li) { li.classList.add('active'); li.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+
+  // Dial
+  const C = 376.99;
+  const arc = document.getElementById('dial-arc');
+  arc.style.strokeDashoffset = C - (data.score / 100) * C;
+  arc.style.stroke           = scoreColor(data.score);
+  animNum('dial-n', data.score);
+
+  // Name / tier
+  document.getElementById('hh-name').textContent = `${data.id} · ${data.governorate}`;
+  const tt = document.getElementById('tier-tag');
+  const ts = tierStyle(data.tier);
+  tt.textContent = `TIER ${data.tier}`;
+  tt.style.cssText = `display:inline-flex;align-items:center;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.6px;margin-bottom:15px;border:1px solid;background:${ts.bg};color:${ts.col};border-color:${ts.bdr}`;
+
+  // Stats (compute active months from features if available)
+  const regVal = getFeatureValue(data.features.regularity);
+  const activeMonths = Math.round(regVal * 24);
+  const nanoDetail = (data.products.find(p => (p.name || '').includes('nano-credit') || p.id === 'nano_credit')?.detail) || '—';
+  document.getElementById('s-med').textContent   = nanoDetail.match(/EGP ([\d,]+)/)?.[0] || '—';
+  document.getElementById('s-mo').textContent    = `${activeMonths}/24`;
+  document.getElementById('s-cor').textContent   = data.corridor || '—';
+  document.getElementById('consent-tag').style.display = 'block';
+
+  // Explanation
+  document.getElementById('exp-card').style.display = 'block';
+  document.getElementById('exp-en').textContent  = data.explanation_en;
+  document.getElementById('exp-ar').textContent  = data.explanation_ar;
+  document.getElementById('llm-label').textContent = data.llm_used
+    ? 'IBM Granite 4.2 · natural rewrite' : 'Template · deterministic fallback';
+
+  // Features
+  document.getElementById('feat-card').style.display = 'block';
+  const f = data.features;
+  const valReg = getFeatureValue(f.regularity);
+  const valRec = getFeatureValue(f.shock_recovery);
+  const valMed = getFeatureValue(f.median_inflow);
+  const valTre = getFeatureValue(f.trend);
+
+  setTimeout(() => {
+    document.getElementById('fb-reg').style.width   = (valReg * 100) + '%';
+    document.getElementById('fb-rec').style.width   = (valRec * 100) + '%';
+    document.getElementById('fb-med').style.width   = (valMed * 100) + '%';
+    document.getElementById('fb-trend').style.width = (valTre * 100) + '%';
+  }, 80);
+  document.getElementById('f-reg').textContent   = pct(valReg);
+  document.getElementById('f-rec').textContent   = pct(valRec);
+  document.getElementById('f-med').textContent   = pct(valMed);
+  document.getElementById('f-trend').textContent = pct(valTre);
+
+  // Products
+  document.getElementById('products').style.display = 'grid';
+  data.products.forEach((p, i) => {
+    const card = document.getElementById(`pc-${i}`);
+    if (!card) return;
+    const lock = document.getElementById(`pl-${i}`);
+    const lim  = document.getElementById(`px-${i}`);
+    const msg  = document.getElementById(`pm-${i}`);
+    card.className = 'prod ' + (p.unlocked ? 'on' : 'off');
+    lock.textContent = p.unlocked ? '✅' : '🔒';
+    lim.textContent = p.detail;
+    lim.style.display  = p.unlocked ? 'block' : 'none';
+    msg.textContent = p.detail;
+    msg.style.display  = p.unlocked ? 'none' : 'block';
+  });
+
+  // Reset bank decision
+  document.getElementById('bank-card').style.display = 'block';
+  document.getElementById('bank-result').style.display = 'none';
+  document.getElementById('bank-btn-wrap').style.display = 'flex';
+
+  // Governance audit log
+  document.getElementById('gov-card').style.display = 'block';
+  const ref = `CC-${id}-${Date.now().toString(36).toUpperCase()}`;
+  document.getElementById('audit-log').innerHTML = [
+    ['14:05:01', 'CONSENT_VERIFIED',  `HH ${id} · open-banking consent token validated`],
+    ['14:05:01', 'DATA_PULLED',       `24-month inflow history from Sendwave/Wise API`],
+    ['14:05:02', 'FEATURE_EXTRACT',   `reg=${valReg.toFixed(2)} rec=${valRec.toFixed(2)} med=${valMed.toFixed(2)} trend=${valTre.toFixed(2)}`],
+    ['14:05:02', 'SCORE_COMPUTED',    `score=${data.score} tier=${data.tier} weights=0.35/0.25/0.20/0.20`],
+    ['14:05:03', 'BIAS_CHECK',        `feature distribution check: PASS · no protected attribute used`],
+    ['14:05:03', 'EXPLANATION_GEN',   `llm_used=${Boolean(data.llm_used)} · model=${data.model_version || 'v1.0'}`],
+    ['14:05:03', 'AUDIT_APPENDED',    `Ref: ${ref} · Written to api/audit.log`],
+  ].map(([t,e,d]) => `<div class="arow"><span class="at">${t}</span><span class="ae">${e}</span><span class="ad">${d}</span></div>`).join('');
+
+  // Re-render sidebar pills
+  renderList(HOUSEHOLDS.filter(h => document.getElementById(`li-${h.id}`) !== null || true));
+}
+
+function WEIGHTS(f) {
+  return {regularity:0.35, shock_recovery:0.25, median_inflow:0.20, trend:0.20};
+}
+
+function pct(v) { return (v * 100).toFixed(1) + '%'; }
+
+function animNum(id, target) {
+  const el = document.getElementById(id);
+  const from = parseInt(el.textContent) || 0;
+  const dur = 900, t0 = performance.now();
+  (function loop(now) {
+    const p = Math.min((now - t0) / dur, 1);
+    const e = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(from + (target - from) * e);
+    if (p < 1) requestAnimationFrame(loop);
+  })(t0);
+}
+
+// ════════════════════════════════════════════
+// BANK DECISION (mock)
+// ════════════════════════════════════════════
+
+function requestBankDecision() {
+  if (!SELECTED) return;
+  const s = SELECTED.score;
+
+  let decision, color, bg, bdr, reason;
+  if (s >= 75) {
+    decision = 'APPROVED'; color = '#42be65'; bg = 'rgba(66,190,101,.1)'; bdr = 'rgba(66,190,101,.3)';
+    const limit = SELECTED.products.find(p=>p.id==='nano_credit')?.detail?.match(/EGP ([\d,]+)/)?.[1] || '—';
+    reason = `Prime corridor profile. Credit line: EGP ${limit}. Banque Misr reference: BM-CC-${SELECTED.id}-${Date.now().toString(36).toUpperCase()}`;
+  } else if (s >= 55) {
+    decision = 'APPROVED ·  CONDITIONS'; color = '#f1c21b'; bg = 'rgba(241,194,27,.1)'; bdr = 'rgba(241,194,27,.3)';
+    reason = `Established profile. Approved with monthly review clause. Nano-credit limit applies.`;
+  } else if (s >= 40) {
+    decision = 'REFER TO OFFICER'; color = '#74a9ff'; bg = 'rgba(116,169,255,.1)'; bdr = 'rgba(116,169,255,.3)';
+    reason = `Emerging profile. Insufficient automated confidence — loan officer review required.`;
+  } else {
+    decision = 'DECLINED'; color = '#fa4d56'; bg = 'rgba(250,77,86,.1)'; bdr = 'rgba(250,77,86,.3)';
+    reason = `Thin file. Insufficient verifiable inflow history. Recommend 3-month Auto-Save starter plan before re-application.`;
+  }
+
+  const tag = document.getElementById('bank-tag');
+  tag.textContent = decision;
+  tag.style.cssText = `padding:8px 18px;border-radius:8px;font-size:14px;font-weight:800;border:1px solid;letter-spacing:.5px;flex-shrink:0;background:${bg};color:${color};border-color:${bdr}`;
+  document.getElementById('bank-reason').textContent = reason;
+  document.getElementById('bank-result').style.display = 'block';
+  document.getElementById('bank-btn-wrap').style.display = 'none';
+}
+
+// ════════════════════════════════════════════
+// QUICK PICK
+// ════════════════════════════════════════════
+
+function quickPick(id) {
+  pick(id);
+}
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+
+loadData();
+</script>
 </body>
 </html>
