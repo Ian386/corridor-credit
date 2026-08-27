@@ -102,7 +102,9 @@ def score(household_id: str):
     """
     if FIXTURE:
         if household_id == FIXTURE["id"]:
-            _audit(FIXTURE, "fixture")
+            # No audit line here on purpose. The fixture was hand-written, not
+            # computed, so logging it would put a row in audit.log that nothing
+            # can reproduce - and reproducibility is the whole claim.
             return FIXTURE
         return _unknown()
 
@@ -134,7 +136,7 @@ def _audit(payload: dict, llm_state: str):
         "score": payload["score"],
         "tier": payload["tier"],
         "model_version": scoring.MODEL_VERSION,
-        "llm": llm_state,  # granite | fallback | off | fixture
+        "llm": llm_state,  # granite | fallback | off
     }
     try:
         with AUDIT_FILE.open("a", encoding="utf-8") as fh:
