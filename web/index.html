@@ -448,21 +448,31 @@
 </div>
 
 <!-- API STATUS -->
-<div class="api-bar">
+<div class="api-bar" onclick="promptChangeApi()" style="cursor: pointer;" title="Click to connect to Ian's Backend IP / URL">
   <div class="api-dot" id="api-dot"></div>
   <span id="api-status">Connecting…</span>
+  <span style="font-size: 8px; opacity: 0.6; margin-left: 4px;">(click to change IP)</span>
 </div>
 
 <script>
 // ════════════════════════════════════════════
 // CONFIG
-// Switch API_BASE to the live API when Dev A says it's up.
-// While offline, set USE_FIXTURE = true and load from the JSON file.
+// Auto-detects local or custom backend IP. Click the status bar to change.
 // ════════════════════════════════════════════
 
-const API_BASE   = 'http://localhost:8000';  // Dev A's FastAPI server
-const FIXTURE    = '../fixtures/mock_response.json';
-let   USE_FIXTURE = false;  // auto-detected below
+let API_BASE    = localStorage.getItem('cc_api_base') || 'http://localhost:8000';
+const FIXTURE   = '../fixtures/mock_response.json';
+let   USE_FIXTURE = false;
+
+function promptChangeApi() {
+  const current = API_BASE;
+  const input = prompt("Enter Ian's Backend API URL (e.g. http://192.168.1.50:8000 or ngrok URL):", current);
+  if (input !== null && input.trim() !== "") {
+    API_BASE = input.trim().replace(/\/+$/, "");
+    localStorage.setItem('cc_api_base', API_BASE);
+    loadData();
+  }
+}
 
 // ════════════════════════════════════════════
 // DATA LAYER
