@@ -7,6 +7,7 @@ server is already running, restart the server.
 import json
 import logging
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -16,6 +17,7 @@ from fastapi.responses import JSONResponse
 # Works whether you launch as `uvicorn main:app` from api/ or
 # `uvicorn api.main:app` from the repo root. On stage, both should work.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import llm  # noqa: E402
 import scoring  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -24,6 +26,7 @@ log = logging.getLogger("corridor-credit")
 ROOT = Path(__file__).resolve().parent.parent
 DATA_FILE = ROOT / "data" / "households.json"
 FIXTURE_FILE = ROOT / "fixtures" / "mock_response.json"
+AUDIT_FILE = Path(__file__).resolve().parent / "audit.log"
 
 app = FastAPI(title="Corridor Credit")
 
@@ -99,6 +102,7 @@ def score(household_id: str):
     """
     if FIXTURE:
         if household_id == FIXTURE["id"]:
+            _audit(FIXTURE, "fixture")
             return FIXTURE
         return _unknown()
 
@@ -106,7 +110,37 @@ def score(household_id: str):
     if household is None:
         return _unknown()
 
-    return scoring.score_household(household, CORPUS_MIN, CORPUS_MAX)
+    payload = scoring.score_household(household, CORPUS_MIN, CORPUS_MAX)
+
+    # Layer 2, optional: reword the two sentences only. The score, tier,
+    # features and products above are already final and are never sent to,
+    # or read back from, the model.
+    payload["explanation_en"], payload["explanation_ar"], used_llm = llm.rewrite(
+        payload["explanation_en"], payload["explanation_ar"]
+    )
+    _audit(payload, "granite" if used_llm else
+           ("fallback" if llm.enabled() else "off"))
+    return payload
+
+
+def _audit(payload: dict, llm_state: str):
+    """One JSON line per scored decision. Open it on stage: every decision here
+    is reproducible from the features and weights recorded next to it."""
+    line = {
+        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "id": payload["id"],
+        "features": {k: f["value"] for k, f in payload["features"].items()},
+        "weights": scoring.WEIGHTS,
+        "score": payload["score"],
+        "tier": payload["tier"],
+        "model_version": scoring.MODEL_VERSION,
+        "llm": llm_state,  # granite | fallback | off | fixture
+    }
+    try:
+        with AUDIT_FILE.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(line, ensure_ascii=False) + "\n")
+    except OSError as exc:  # never let logging break a demo response
+        log.warning("audit write failed: %s", exc)
 
 
 def _unknown():
