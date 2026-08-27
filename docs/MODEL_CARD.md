@@ -9,4 +9,8 @@ Owner: Dev C. One page. Judges love this and nobody builds it.
 - **Human override** Any decline can be appealed to a human reviewer.
 - **Consumer protection** Credit capped at 60% of one month's median inflow.
 - **Known limitations** Trained on synthetic data. Not validated on real portfolios.
-- **Audit** Every request logged with inputs, weights, output and model version.
+- **Scoring model** Deterministic arithmetic, no machine learning, no black box.
+- **Explanation model** IBM Granite on local Ollama, Apache 2.0, offline, optional.
+  It rewords an explanation the scorer already produced. It never sees the score.
+- **Audit** Every request logged to `api/audit.log` as one JSON line with inputs,
+  weights, output, model version and whether the explanation was Granite or template.

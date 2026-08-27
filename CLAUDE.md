@@ -22,7 +22,8 @@ Do not refactor code you were not asked to touch.
 - API: Python 3, FastAPI, uvicorn. CORS wide open (demo only).
 - Web: one `index.html`, vanilla JS, no framework, no npm.
 - Data: plain JSON committed to the repo. No generation at runtime.
-- LLM: Anthropic/watsonx call for the explanation string only. Never for scoring.
+- LLM: local Ollama running IBM Granite (Apache 2.0) for the explanation string
+  only, off by default. Never for scoring. Fully offline, no API keys.
 
 ## Demo path that must never break
 Open the page, pick household `EG-0007` (high score), read the explanation,

@@ -14,6 +14,12 @@ Terminal 1 (API):
     pip install -r requirements.txt
     uvicorn main:app --reload --port 8000
 
+Optional, natural-language explanations via local IBM Granite (Apache 2.0):
+    ollama pull granite4.2:3b
+    USE_LLM=1 GRANITE_MODEL=granite4.2:3b uvicorn main:app --port 8000
+    # off by default. If Ollama is not running, explanations fall back to the
+    # built-in template and the demo is unchanged.
+
 Terminal 2 (web):
     cd web
     python3 -m http.server 5500
