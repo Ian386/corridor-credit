@@ -1,3 +1,8 @@
+# Full Names
+Ian Ndolo Mwau
+Tyrese Muigai
+Francis Kimani
+
 # Collaborators Git Usernames
 
 ian386
